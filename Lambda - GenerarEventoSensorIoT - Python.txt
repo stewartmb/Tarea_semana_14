@@ -1,0 +1,39 @@
+import json
+import random
+from datetime import datetime
+import boto3
+
+def lambda_handler(event, context):
+    # Simulacion de Lectura de Sensor
+    tenant_id = "FAB1"
+    sensor_id = "CO2"
+    now = datetime.now()
+    fecha_hora = str(now.date()) + "." + str(now.time())
+    medicion = random.randint(400, 1000) # Desde 400 a 1000 PPM (Nivel de CO2)
+    unidad_medida = "PPM"
+
+    lectura_sensor = {
+        'tenant_id': tenant_id,
+        'lectura_id': sensor_id + "." + fecha_hora,
+        'lectura_datos': {
+            'medicion': medicion,
+            'unidad_medida': unidad_medida
+        }    
+    }
+    print(lectura_sensor) # Para logs en Cloud Watch
+    # Publicar en SNS
+    sns_client = boto3.client('sns')
+    response_sns = sns_client.publish(
+        TopicArn = 'arn:aws:sns:us-east-1:447891120606:TemaSensorIoT',
+        Subject = 'Nueva Lectura Sensor',
+        Message = json.dumps(lectura_sensor),
+        MessageAttributes = {
+            'tenant_id': {'DataType': 'String', 'StringValue': tenant_id },
+            'sensor_id': {'DataType': 'String', 'StringValue': sensor_id },
+            'medicion': {'DataType': 'Number', 'StringValue': str(medicion) }
+        }
+    )    
+    return {
+        'statusCode': 200,
+        'body': response_sns
+    }
