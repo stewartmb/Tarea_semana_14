@@ -6,34 +6,55 @@ import boto3
 def lambda_handler(event, context):
     # Simulacion de Lectura de Sensor
     tenant_id = "FAB1"
-    sensor_id = "CO2"
     now = datetime.now()
     fecha_hora = str(now.date()) + "." + str(now.time())
-    medicion = random.randint(400, 1000) # Desde 400 a 1000 PPM (Nivel de CO2)
-    unidad_medida = "PPM"
-
-    lectura_sensor = {
-        'tenant_id': tenant_id,
-        'lectura_id': sensor_id + "." + fecha_hora,
-        'lectura_datos': {
-            'medicion': medicion,
-            'unidad_medida': unidad_medida
-        }    
-    }
-    print(lectura_sensor) # Para logs en Cloud Watch
-    # Publicar en SNS
-    sns_client = boto3.client('sns')
-    response_sns = sns_client.publish(
-        TopicArn = 'arn:aws:sns:us-east-1:447891120606:TemaSensorIoT',
-        Subject = 'Nueva Lectura Sensor',
-        Message = json.dumps(lectura_sensor),
-        MessageAttributes = {
-            'tenant_id': {'DataType': 'String', 'StringValue': tenant_id },
-            'sensor_id': {'DataType': 'String', 'StringValue': sensor_id },
-            'medicion': {'DataType': 'Number', 'StringValue': str(medicion) }
+    
+    # Diccionario para manejar múltiples sensores
+    sensores = {
+        "CO2": {
+            "rango": (400, 1000),  # PPM
+            "unidad_medida": "PPM"
+        },
+        "TEMP": {
+            "rango": (10, 60),  # °C
+            "unidad_medida": "CELSIUS"
         }
-    )    
+    }
+    
+    resultados = []
+    
+    for sensor_id, propiedades in sensores.items():
+        medicion = random.randint(*propiedades["rango"])
+        unidad_medida = propiedades["unidad_medida"]
+        
+        lectura_sensor = {
+            'tenant_id': tenant_id,
+            'lectura_id': sensor_id + "." + fecha_hora,
+            'lectura_datos': {
+                'medicion': medicion,
+                'unidad_medida': unidad_medida
+            }
+        }
+        print(lectura_sensor)  # Para logs en CloudWatch
+        
+        # Publicar en SNS
+        sns_client = boto3.client('sns')
+        response_sns = sns_client.publish(
+            TopicArn='arn:aws:sns:us-east-1:630606600000:TemaSensorIoT',
+            Subject='Nueva Lectura Sensor',
+            Message=json.dumps(lectura_sensor),
+            MessageAttributes={
+                'tenant_id': {'DataType': 'String', 'StringValue': tenant_id},
+                'sensor_id': {'DataType': 'String', 'StringValue': sensor_id},
+                'medicion': {'DataType': 'Number', 'StringValue': str(medicion)}
+            }
+        )
+        resultados.append({
+            'sensor_id': sensor_id,
+            'response': response_sns
+        })
+    
     return {
         'statusCode': 200,
-        'body': response_sns
+        'body': resultados
     }
